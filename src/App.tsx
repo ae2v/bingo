@@ -21,7 +21,7 @@ function gridFillPath(position: number) {
   const row = Math.floor(position / 4); const col = position % 4;
   const a = gridPoints[row][col]; const b = gridPoints[row][col + 1]; const c = gridPoints[row + 1][col + 1]; const d = gridPoints[row + 1][col];
   const wobble = ((row + col) % 2 ? .45 : -.45);
-  return `M${a[0]} ${a[1]} Q${(a[0] + b[0]) / 2} ${(a[1] + b[1]) / 2 + wobble} ${b[0]} ${b[1]} Q${(b[0] + c[0]) / 2 + wobble} ${(b[1] + c[1]) / 2} ${c[0]} ${c[1]} Q${(c[0] + d[0]) / 2} ${(c[1] + d[1]) / 2 - wobble} ${d[0]} ${d[1]} Q${(d[0] + a[0]) / 2 - wobble} ${(d[1] + a[1]) / 2} ${a[0]} ${a[1]}Z`;
+  return `M$${a[0]} $${a[1]} Q$${(a[0] + b[0]) / 2} $${(a[1] + b[1]) / 2 + wobble} $${b[0]} $${b[1]} Q$${(b[0] + c[0]) / 2 + wobble} $${(b[1] + c[1]) / 2} $${c[0]} $${c[1]} Q$${(c[0] + d[0]) / 2} $${(c[1] + d[1]) / 2 - wobble} $${d[0]} $${d[1]} Q$${(d[0] + a[0]) / 2 - wobble} $${(d[1] + a[1]) / 2} $${a[0]} $${a[1]}Z`;
 }
 
 function CategoryDoodle({ category }: { category: string }) {
@@ -75,7 +75,7 @@ function ChanceBoard({ entries, maxEntries }: { entries: number; maxEntries: num
   return <aside className={`chance-board ${celebrating !== null ? 'chance-board--celebrating' : ''}`}>
     <div className="chance-board__copy"><p className="eyebrow">TES CHANCES AU TIRAGE</p><strong>{entries}<span>/{maxEntries}</span></strong><p>Chaque ligne ou colonne complète ajoute une participation au tirage.</p></div>
     <div className="chance-pins" role="progressbar" aria-label="Chances gagnées" aria-valuemin={0} aria-valuemax={maxEntries} aria-valuenow={entries}>
-      {[...Array(maxEntries)].map((_, i) => <span key={i} className={`chance-pin ${i < entries ? 'is-filled' : ''} ${i === celebrating ? 'is-new' : ''}`}><svg viewBox="0 0 46 58" aria-hidden="true"><ellipse className="chance-pin__shadow" cx="23" cy="49" rx="14" ry="4"/><g className="chance-pin__body"><circle cx="23" cy="17" r="12"/><path d="M20 27h6l-1 17-2 6-2-6Z"/><path className="chance-pin__shine" d="M17 12c3-4 8-5 12-2"/></g></svg><small>+1</small></span>)}
+      {[...Array(maxEntries)].map((_, i) => <span key={i} className={`chance-pin $${i < entries ? 'is-filled' : ''} $${i === celebrating ? 'is-new' : ''}`}><svg viewBox="0 0 46 58" aria-hidden="true"><ellipse className="chance-pin__shadow" cx="23" cy="49" rx="14" ry="4"/><g className="chance-pin__body"><circle cx="23" cy="17" r="12"/><path d="M20 27h6l-1 17-2 6-2-6Z"/><path className="chance-pin__shine" d="M17 12c3-4 8-5 12-2"/></g></svg><small>+1</small></span>)}
     </div>
     {celebrating !== null && <div className="chance-confetti" aria-hidden="true">{[...Array(14)].map((_,i)=><i key={i} style={{'--i':i} as CSSProperties}/>)}</div>}
   </aside>;
@@ -86,7 +86,7 @@ async function makeCode(secretB64: string, eventId: string, time: number) {
   const bytes = Uint8Array.from(atob(secretB64), (char) => char.charCodeAt(0));
   const key = await crypto.subtle.importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const slot = Math.floor(time / 600_000);
-  const signed = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${eventId}:${slot}`)));
+  const signed = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`$${eventId}:$${slot}`)));
   return [...signed.slice(0, 4)].map((byte) => alphabet[byte % alphabet.length]).join('');
 }
 
@@ -119,7 +119,12 @@ function Registration({ state, onDone }: { state: PublicState; onDone: () => voi
   }
   return <main className="welcome-shell">
     <header><Brand/></header>
-    <section className="welcome-copy"><p className="eyebrow">SOIRÉE D’INTÉGRATION · 17.09.2026</p><h1>Le bingo<br/><em>humain.</em></h1><p>Rencontre les autres étudiants, trouve qui correspond à chaque défi et scanne son code.</p><div className="welcome-promises"><span><Gift/><b>Grille complète</b><small>Un cadeau à gagner</small></span><span><Trophy/><b>Lignes et colonnes</b><small>Des participations au tirage</small></span></div><PartyIllustration/></section>
+    <section className="welcome-copy"><p className="eyebrow">SOIRÉE D’INTÉGRATION · 17.09.2026</p>
+      <img src="/bingo-logo.svg" alt="Le Bingo Humain" className="bingo-logo-title" />
+      <p>Rencontre les autres étudiants, trouve qui correspond à chaque défi et scanne son code.</p>
+      <div className="welcome-promises"><span><Gift/><b>Grille complète</b><small>Un cadeau à gagner</small></span><span><Trophy/><b>Lignes et colonnes</b><small>Des participations au tirage</small></span></div>
+      <PartyIllustration/>
+    </section>
     <form className="join-card" onSubmit={submit}>
       <div className={`state-pill state-pill--${state.state.toLowerCase()}`}>{state.state === 'RUNNING' ? 'La partie est ouverte' : state.state === 'WAITING' ? 'Inscriptions ouvertes' : 'Partie terminée'}</div>
       <h2>Crée ta grille</h2><p>Deux infos, puis ta grille personnelle est prête.</p>
@@ -203,7 +208,7 @@ function GridView({ data, refresh, notify }: { data: PlayerData; refresh: () => 
     {data.state.state !== 'RUNNING' && <div className="notice"><CircleHelp/><span>{data.state.state === 'WAITING' ? 'La grille est prête. AE2V va bientôt lancer la partie.' : 'La partie est terminée. Les résultats arrivent ici.'}</span></div>}
     <FirstBingoNote winner={data.state.firstFullWinner} prize={data.state.prizes.full}/>
     <div className="grid-wrap"><div className="bingo-grid" aria-label="Grille de bingo"><svg className="bingo-grid__fills" viewBox="-4 -4 108 108" aria-hidden="true" preserveAspectRatio="none">
-      {data.grid.map((item) => { const status = pending.has(item.id) ? 'pending' : item.status; return <path key={item.id} className={`bingo-fill bingo-fill--d${Math.min(3, Math.max(1, item.difficulty || 1))} bingo-fill--${status}`} d={gridFillPath(item.position)}/> })}
+      {data.grid.map((item) => { const status = pending.has(item.id) ? 'pending' : item.status; return <path key={item.id} className={`bingo-fill bingo-fill--d$${Math.min(3, Math.max(1, item.difficulty || 1))} bingo-fill--$${status}`} d={gridFillPath(item.position)}/> })}
     </svg><svg className="bingo-grid__lines" viewBox="-4 -4 108 108" aria-hidden="true" preserveAspectRatio="none">
       <path d="M-.8 -2 C.9 18 -.5 42 .7 62 C1.7 79 -.4 94 .8 102" />
       <path d="M24.7 -2 C23.8 15 25.9 31 24.8 49 C23.7 67 25.4 83 24.3 102" />
@@ -215,7 +220,7 @@ function GridView({ data, refresh, notify }: { data: PlayerData; refresh: () => 
       <path d="M-2 50.1 C18 48.9 32 51.2 50 50.3 C69 49.2 84 51.4 102 49.9" />
       <path d="M-2 75.3 C15 74 34 76.4 51 75.1 C68 73.9 84 76.2 102 75.5" />
       <path d="M-2 100.1 C17 101.3 33 98.6 51 100.5 C69 102.1 86 98.9 102 100.2" />
-    </svg>{data.grid.map((item) => { const status = pending.has(item.id) ? 'pending' : item.status; const validator = item.validatorFirstName || 'AE2V'; return <button key={item.id} className={`bingo-cell bingo-cell--${status} bingo-cell--d${Math.min(3, Math.max(1, item.difficulty || 1))}`} disabled={status !== 'empty' || data.state.state !== 'RUNNING'} onClick={() => setSelected(item)} aria-label={`${item.text}, catégorie ${item.category}${status === 'confirmed' ? `, validée par ${validator}` : ''}`}><span className="bingo-cell__text">{item.text}</span><span className="bingo-cell__category" title={item.category} style={{ '--icon-rotation': `${((item.position * 7) % 13) - 6}deg` } as CSSProperties}><CategoryDoodle category={item.category}/></span>{status === 'confirmed' && <><span className="validator-name">{validator}</span><FingerprintStamp seed={item.position}/></>}{status === 'pending' && <span className="stamp stamp--pending"><LoaderCircle/> En attente</span>}</button>})}</div>
+    </svg>{data.grid.map((item) => { const status = pending.has(item.id) ? 'pending' : item.status; const validator = item.validatorFirstName || 'AE2V'; return <button key={item.id} className={`bingo-cell bingo-cell--$${status} bingo-cell--d$${Math.min(3, Math.max(1, item.difficulty || 1))}`} disabled={status !== 'empty' || data.state.state !== 'RUNNING'} onClick={() => setSelected(item)} aria-label={`$${item.text}, catégorie $${item.category}$${status === 'confirmed' ? `, validée par $${validator}` : ''}`}><span className="bingo-cell__text">{item.text}</span><span className="bingo-cell__category" title={item.category} style={{ '--icon-rotation': `${((item.position * 7) % 13) - 6}deg` } as CSSProperties}><CategoryDoodle category={item.category}/></span>{status === 'confirmed' && <><span className="validator-name">{validator}</span><FingerprintStamp seed={item.position}/></>}{status === 'pending' && <span className="stamp stamp--pending"><LoaderCircle/> En attente</span>}</button>})}</div>
       <ChanceBoard entries={data.progress.entries} maxEntries={data.progress.maxEntries}/></div>
     {selected && <ValidationSheet item={selected} onClose={() => setSelected(null)} onSuccess={(isPending) => { setSelected(null); if (isPending) { setPending(new Set(pending).add(selected.id)); notify('Validation gardée sur ce téléphone. Elle partira dès que le réseau revient.'); } else { notify('Case validée !', 'success'); refresh(); } }}/>}</>;
 }
@@ -223,7 +228,7 @@ function GridView({ data, refresh, notify }: { data: PlayerData; refresh: () => 
 function CodeView({ data }: { data: PlayerData }) {
   const [code, setCode] = useState('----'); const [seconds, setSeconds] = useState(600);
   useEffect(() => { let active = true; const update = async () => { const now = Date.now() + (data.state.serverTime - Date.now()); if (active) { setCode(await makeCode(data.user.codeSecret, data.user.eventId, now)); setSeconds(600 - Math.floor((now / 1000) % 600)); } }; update(); const timer = setInterval(update, 1000); return () => { active = false; clearInterval(timer); }; }, [data]);
-  const payload = `${data.user.firstNormalized};${code}`;
+  const payload = `$${data.user.firstNormalized};$${code}`;
   return <section className="code-view"><p className="eyebrow">TON PASS RENCONTRE</p><h1>Fais scanner ce code.</h1><div className="qr-ticket"><div className="qr-ticket__top"><span>SOIRÉE D’INTÉGRATION · AE2V</span><b>PASS RENCONTRE</b><QRCodeSVG value={payload} size={220} bgColor="#f6e8bd" fgColor="#291a3f" level="M"/><small>Présente ce QR à la personne rencontrée</small></div><div className="qr-ticket__tear"><span className="ticket-notch ticket-notch--left"/><i/><span className="ticket-notch ticket-notch--right"/></div><div className="qr-ticket__stub"><small>ADMIT ONE · 17 SEPT. 2026</small><strong>{data.user.firstName}</strong><code>{code}</code><span>Nouveau code dans {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span></div></div></section>;
 }
 
