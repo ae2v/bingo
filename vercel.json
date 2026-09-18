@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "regions": ["fra1"],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/server?__path=$1",
+      "headers": {
+        "Permissions-Policy": "camera=(self)"
+      }
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "headers": {
+        "Permissions-Policy": "camera=(self)"
+      }
+    }
+  ]
+}

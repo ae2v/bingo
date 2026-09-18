@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bingo
+      POSTGRES_USER: bingo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - bingo_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bingo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8787
+      DATABASE_URL: postgres://bingo:${POSTGRES_PASSWORD}@db:5432/bingo
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      MASTER_KEY: ${MASTER_KEY}
+      PUBLIC_ORIGIN: https://bingo.ae2v.fr
+    command: ["sh", "-c", "node server/dist/migrate.js && node server/dist/seed.js && node server/dist/index.js"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  bingo_postgres:
+  caddy_data:
+  caddy_config:

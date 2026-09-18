@@ -1,0 +1,49 @@
+{
+  "name": "bingo-ae2v",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c red,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch server/src/index.ts",
+    "dev:web": "vite --host 0.0.0.0",
+    "build": "tsc -p server/tsconfig.json && vite build",
+    "start": "node server/dist/index.js",
+    "db:migrate": "tsx server/src/migrate.ts",
+    "db:seed": "tsx server/src/seed.ts",
+    "test": "vitest run",
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.2",
+    "@fastify/cors": "11.3.0",
+    "@fastify/helmet": "13.1.1",
+    "@fastify/rate-limit": "11.2.0",
+    "@fastify/static": "10.1.4",
+    "@fontsource-variable/fredoka": "^5.2.8",
+    "@fontsource/patrick-hand": "^5.2.7",
+    "dotenv": "17.2.3",
+    "fastify": "5.12.5",
+    "jsqr": "^1.4.0",
+    "lucide-react": "1.47.0",
+    "pg": "8.23.0",
+    "qrcode.react": "4.2.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.4",
+    "@types/pg": "8.15.6",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vercel/node": "^13.0.1",
+    "@vitejs/plugin-react": "6.1.1",
+    "concurrently": "9.2.4",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}
