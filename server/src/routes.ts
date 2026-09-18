@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { newToken, passwordMatches, requireAdmin, requirePlayer, tokenHash } from './auth.js';
 import { pool, transaction } from './db.js';
-import { completedEntries, drawWeighted, generateGrid, normalizeName, temporaryCode } from './domain.js';
+import { completedEntries, drawWeighted, generateGrid, normalizeName, suspicionScore, temporaryCode } from './domain.js';
 
 const EVENT = 'integration-2026';
 const cookie = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', maxAge: 60 * 60 * 24 * 7 };
@@ -142,16 +142,34 @@ export async function registerRoutes(app: FastifyInstance) {
   app.get('/api/admin/state', { preHandler: requireAdmin }, async () => {
     const event = await eventRow();
     const stats = (await pool.query(`SELECT count(DISTINCT u.id)::int AS players,count(gi.validated_at)::int AS validations FROM users u LEFT JOIN grids g ON g.user_id=u.id LEFT JOIN grid_items gi ON gi.grid_id=g.id WHERE u.event_id=$1`, [event.id])).rows[0];
-    const suspicion = await pool.query(`WITH metrics AS (SELECT u.id,u.first_name,u.last_name,count(va.id)::int attempts,count(va.id) FILTER(WHERE va.status='REJECTED')::int rejected,count(va.id) FILTER(WHERE va.created_at>now()-interval '2 minutes')::int recent FROM users u LEFT JOIN validation_attempts va ON va.owner_id=u.id WHERE u.event_id=$1 GROUP BY u.id) SELECT *,LEAST(100,rejected*12+GREATEST(0,recent-4)*8+GREATEST(0,attempts-20)*2)::int score FROM metrics ORDER BY score DESC,attempts DESC LIMIT 12`, [event.id]);
+    const suspicionResult = await pool.query(`WITH attempts AS (
+      SELECT u.id,u.first_name,u.last_name,count(va.id)::int attempts,
+      count(va.id) FILTER(WHERE va.status='REJECTED')::int rejected,
+      count(va.id) FILTER(WHERE va.created_at>now()-interval '2 minutes')::int recent
+      FROM users u LEFT JOIN validation_attempts va ON va.owner_id=u.id
+      WHERE u.event_id=$1 GROUP BY u.id
+    ), scan_usage AS (
+      SELECT u.id,count(gi.id)::int scans_received,count(DISTINCT c.category)::int category_count
+      FROM users u LEFT JOIN grid_items gi ON gi.validated_by=u.id AND gi.validated_at IS NOT NULL
+      LEFT JOIN bingo_cases c ON c.id=gi.case_id
+      WHERE u.event_id=$1 GROUP BY u.id
+    ) SELECT attempts.*,scan_usage.scans_received,scan_usage.category_count FROM attempts JOIN scan_usage USING(id)`, [event.id]);
+    const suspicion = suspicionResult.rows.map((row) => ({ ...row, score: suspicionScore({ attempts: row.attempts, rejected: row.rejected, recent: row.recent, scansReceived: row.scans_received, categoryCount: row.category_count }) })).sort((a, b) => b.score - a.score || b.attempts - a.attempts).slice(0, 12);
     const full = event.first_full_winner_id ? (await pool.query(`SELECT first_name,last_name FROM users WHERE id=$1`, [event.first_full_winner_id])).rows[0] : null;
     const lastDraw = await pool.query(`SELECT u.id,u.first_name,u.last_name,rw.position,rw.entries,rd.prize_label FROM raffle_draws rd JOIN raffle_winners rw ON rw.draw_id=rd.id JOIN users u ON u.id=rw.user_id WHERE rd.event_id=$1 AND rd.id=(SELECT id FROM raffle_draws WHERE event_id=$1 ORDER BY created_at DESC LIMIT 1) ORDER BY rw.position`, [event.id]);
-    return { event, stats, suspicion: suspicion.rows, firstFullWinner: full, drawWinners: lastDraw.rows };
+    return { event, stats, suspicion, firstFullWinner: full, drawWinners: lastDraw.rows };
   });
 
   app.get('/api/admin/users', { preHandler: requireAdmin }, async (request) => {
     const { q } = parse(z.object({ q: z.string().trim().max(100).default('') }), request.query);
     const event = await eventRow(); const search = `%${normalizeName(q)}%`;
-    const result = await pool.query(`SELECT u.id,u.first_name,u.last_name,u.created_at,count(gi.validated_at)::int validations FROM users u LEFT JOIN grids g ON g.user_id=u.id LEFT JOIN grid_items gi ON gi.grid_id=g.id WHERE u.event_id=$1 AND ($2='%%' OR u.first_normalized LIKE $2 OR u.last_normalized LIKE $2 OR concat(u.first_normalized,' ',u.last_normalized) LIKE $2) GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100`, [event.id, search]);
+    const result = await pool.query(`SELECT u.id,u.first_name,u.last_name,u.created_at,
+      count(gi.id) FILTER(WHERE gi.validated_at IS NOT NULL)::int validations,
+      count(gi.id) FILTER(WHERE gi.validated_at IS NOT NULL AND gi.validated_by IS NOT NULL)::int scans_made,
+      (SELECT count(*)::int FROM grid_items used WHERE used.validated_by=u.id AND used.validated_at IS NOT NULL) scans_received
+      FROM users u LEFT JOIN grids g ON g.user_id=u.id LEFT JOIN grid_items gi ON gi.grid_id=g.id
+      WHERE u.event_id=$1 AND ($2='%%' OR u.first_normalized LIKE $2 OR u.last_normalized LIKE $2 OR concat(u.first_normalized,' ',u.last_normalized) LIKE $2)
+      GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100`, [event.id, search]);
     return result.rows;
   });
 
@@ -164,15 +182,22 @@ export async function registerRoutes(app: FastifyInstance) {
       count(va.id) FILTER(WHERE va.created_at>now()-interval '2 minutes')::int recent
       FROM users u LEFT JOIN validation_attempts va ON va.owner_id=u.id
       WHERE u.id=$1 AND u.event_id=$2 GROUP BY u.id
-    ) SELECT *,LEAST(100,rejected*12+GREATEST(0,recent-4)*8+GREATEST(0,attempts-20)*2)::int score FROM metrics`, [id, event.id]);
+    ), scan_usage AS (
+      SELECT count(gi.id)::int scans_received,count(DISTINCT c.category)::int category_count
+      FROM grid_items gi JOIN bingo_cases c ON c.id=gi.case_id
+      WHERE gi.validated_by=$1 AND gi.validated_at IS NOT NULL
+    ) SELECT metrics.*,scan_usage.scans_received,scan_usage.category_count FROM metrics CROSS JOIN scan_usage`, [id, event.id]);
     if (!userResult.rowCount) throw Object.assign(new Error('Participant introuvable.'), { statusCode: 404 });
-    const [grid, scans, categories] = await Promise.all([
+    const [grid, scans, categories, peopleScanned] = await Promise.all([
       pool.query(`SELECT gi.id,gi.position,gi.validated_at,gi.admin_validated,c.text,c.category,c.difficulty,v.id validator_id,v.first_name validator_first_name,v.last_name validator_last_name FROM grids g JOIN grid_items gi ON gi.grid_id=g.id JOIN bingo_cases c ON c.id=gi.case_id LEFT JOIN users v ON v.id=gi.validated_by WHERE g.user_id=$1 ORDER BY gi.position`, [id]),
       pool.query(`SELECT gi.id item_id,gi.validated_at,c.category,c.text case_text,o.id owner_id,o.first_name owner_first_name,o.last_name owner_last_name FROM grid_items gi JOIN grids g ON g.id=gi.grid_id JOIN users o ON o.id=g.user_id JOIN bingo_cases c ON c.id=gi.case_id WHERE gi.validated_by=$1 ORDER BY gi.validated_at DESC`, [id]),
-      pool.query(`SELECT c.category,count(*)::int validations FROM grid_items gi JOIN bingo_cases c ON c.id=gi.case_id WHERE gi.validated_by=$1 GROUP BY c.category ORDER BY validations DESC,c.category`, [id])
+      pool.query(`SELECT c.category,count(*)::int validations FROM grid_items gi JOIN bingo_cases c ON c.id=gi.case_id WHERE gi.validated_by=$1 GROUP BY c.category ORDER BY validations DESC,c.category`, [id]),
+      pool.query(`SELECT gi.id item_id,gi.validated_at,c.category,c.text case_text,v.id person_id,v.first_name person_first_name,v.last_name person_last_name FROM grids g JOIN grid_items gi ON gi.grid_id=g.id JOIN bingo_cases c ON c.id=gi.case_id JOIN users v ON v.id=gi.validated_by WHERE g.user_id=$1 AND gi.validated_at IS NOT NULL ORDER BY gi.validated_at DESC`, [id])
     ]);
     const positions = grid.rows.filter((row) => row.validated_at).map((row) => row.position);
-    return { user: userResult.rows[0], grid: grid.rows, scans: scans.rows, categories: categories.rows, progress: { validated: positions.length, entries: completedEntries(positions, event.max_raffle_entries), maxEntries: event.max_raffle_entries } };
+    const user = userResult.rows[0];
+    user.score = suspicionScore({ attempts: user.attempts, rejected: user.rejected, recent: user.recent, scansReceived: user.scans_received, categoryCount: user.category_count });
+    return { user, grid: grid.rows, scans: scans.rows, peopleScanned: peopleScanned.rows, categories: categories.rows, progress: { validated: positions.length, entries: completedEntries(positions, event.max_raffle_entries), maxEntries: event.max_raffle_entries } };
   });
 
   app.patch('/api/admin/users/:id/grid/:itemId', { preHandler: requireAdmin }, async (request) => {

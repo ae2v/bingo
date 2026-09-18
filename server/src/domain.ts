@@ -54,6 +54,16 @@ export function completedEntries(positions: number[], max: number) {
   return Math.min(total, max);
 }
 
+export function suspicionScore(metrics: { attempts: number; rejected: number; recent: number; scansReceived: number; categoryCount: number }) {
+  return Math.min(100,
+    metrics.rejected * 12
+    + Math.max(0, metrics.recent - 4) * 8
+    + Math.max(0, metrics.attempts - 20) * 2
+    + Math.max(0, metrics.categoryCount - 3) * 10
+    + Math.max(0, metrics.scansReceived - 6) * 3
+  );
+}
+
 export function drawWeighted<T extends { id: string; entries: number }>(people: T[], count: number) {
   const pool = people.filter((person) => person.entries > 0).map((person) => ({ ...person }));
   const winners: T[] = [];
