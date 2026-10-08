@@ -1,7 +1,8 @@
+import { registerSsoRoutes } from './sso.js';
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { newToken, passwordMatches, requireAdmin, requirePlayer, tokenHash } from './auth.js';
+import { newToken, requireAdmin, requirePlayer, tokenHash } from './auth.js';
 import { pool, transaction } from './db.js';
 import { completedEntries, drawWeighted, generateGrid, normalizeName, suspicionScore, temporaryCode } from './domain.js';
 
@@ -123,21 +124,7 @@ export async function registerRoutes(app: FastifyInstance) {
     return result;
   });
 
-  app.post('/api/admin/login', { config: { rateLimit: { max: 8, timeWindow: '10 minutes' } } }, async (request, reply) => {
-    const { password } = parse(z.object({ password: z.string().min(1).max(200) }), request.body);
-    if (!passwordMatches(password)) throw Object.assign(new Error('Mot de passe incorrect.'), { statusCode: 401 });
-    const token = newToken();
-    await pool.query(`INSERT INTO admin_sessions(token_hash,expires_at) VALUES($1,now()+interval '12 hours')`, [tokenHash(token)]);
-    reply.setCookie('bingo_admin', token, cookie);
-    return { ok: true };
-  });
-
-  app.post('/api/admin/logout', { preHandler: requireAdmin }, async (request, reply) => {
-    const token = request.cookies.bingo_admin!;
-    await pool.query(`DELETE FROM admin_sessions WHERE token_hash=$1`, [tokenHash(token)]);
-    reply.clearCookie('bingo_admin', { path: '/' });
-    return { ok: true };
-  });
+  await registerSsoRoutes(app);
 
   app.get('/api/admin/state', { preHandler: requireAdmin }, async () => {
     const event = await eventRow();

@@ -10,7 +10,7 @@ Application Web du bingo humain AE2V pour la soirée d’intégration du 17 sept
 - tirage pondéré par lignes/colonnes, nombre de gagnants et lots configurables ;
 - interface admin mobile et bureau : `DÉMARRER`, `TERMINER`, `RESET`, recherche, réinitialisation d’appareil, score de suspicion et tirage ;
 - affichage public limité aux prénoms, noms complets réservés à l’administration ;
-- cookies de session `HttpOnly`, limitation de débit, en-têtes de sécurité et audit des actions sensibles.
+- accès administrateur via le SSO Google Workspace AE2V, cookies de session `HttpOnly`, limitation de débit, en-têtes de sécurité et audit des actions sensibles.
 
 La direction visuelle et les captures de repérage sont dans [docs/STRATEGIE_GRAPHIQUE.md](docs/STRATEGIE_GRAPHIQUE.md).
 
@@ -41,7 +41,7 @@ npm run dev
 
 - joueur : `http://localhost:5173`
 - admin : `http://localhost:5173/admin`
-- mot de passe d’exemple local : `exemplemdp`
+- administration : `http://localhost:5173/admin`, puis connexion avec un compte autorisé dans le SSO ; configure les variables `SSO_*` ci-dessous.
 
 ## Déployer sur bingo.ae2v.fr
 
@@ -53,7 +53,9 @@ npm run dev
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Caddy obtient et renouvelle automatiquement le certificat TLS. Remplacez le mot de passe d’exemple et les secrets cryptographiques avant toute mise en production hors Vercel.
+Caddy obtient et renouvelle automatiquement le certificat TLS. Remplacez les secrets cryptographiques et configurez le client OIDC avant toute mise en production hors Vercel.
+
+Variables SSO requises : `SSO_ISSUER`, `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET` et `ROLE_CLAIM_NAMESPACE`. Le client doit autoriser l’URI de retour `/api/admin/callback` et attribuer le rôle `admin` à chaque administrateur du Bingo.
 
 ## Commandes de contrôle
 

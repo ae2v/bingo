@@ -23,7 +23,8 @@ function codeFor(player, time) {
   return [...bytes.subarray(0, 4)].map((byte) => alphabet[byte % alphabet.length]).join('');
 }
 
-await request('/api/admin/login', { jar: 'admin', method: 'POST', body: { password: process.env.ADMIN_PASSWORD ?? 'exemplemdp' } });
+if (!process.env.SMOKE_ADMIN_COOKIE) throw new Error('SMOKE_ADMIN_COOKIE doit contenir une session SSO administrateur valide pour cet environnement de test.');
+jars.set('admin', process.env.SMOKE_ADMIN_COOKIE);
 try {
   await request('/api/admin/game/reset', { jar: 'admin', method: 'POST', body: { confirmation: 'RESET BINGO' } });
   for (let index = 0; index < 17; index++) await request('/api/player/register', { jar: `p${index}`, method: 'POST', body: { firstName: `Test${index}`, lastName: 'Smoke' } });

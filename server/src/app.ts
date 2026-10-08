@@ -7,7 +7,7 @@ import { config } from './config.js';
 import { registerRoutes } from './routes.js';
 
 export async function buildApp() {
-  const app = Fastify({ logger: true, trustProxy: true });
+  const app = Fastify({ logger: { serializers: { req: (request) => ({ method: request.method, url: request.url?.split("?")[0], hostname: request.hostname, remoteAddress: request.ip }) } }, trustProxy: true });
 
   // Certains navigateurs/proxys conservent application/json sur les requêtes
   // DELETE sans corps. Fastify doit alors accepter le corps vide au lieu de

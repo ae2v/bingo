@@ -11,7 +11,6 @@ export const config = {
   port: Number(process.env.PORT ?? 8787),
   host: process.env.HOST ?? '0.0.0.0',
   env: process.env.NODE_ENV ?? 'development',
-  adminPassword: required('ADMIN_PASSWORD', 'exemplemdp'),
   cookieSecret: required('COOKIE_SECRET', 'development-cookie-secret-change-me-32'),
   masterKey: required('MASTER_KEY', 'development-master-key-change-me-32'),
   publicOrigin: process.env.PUBLIC_ORIGIN ?? 'http://localhost:5173'
