@@ -233,6 +233,9 @@ h1,h2,h3{text-wrap:balance}.rules-intro,.steps p,.chance-board__copy>p:last-chil
 
 @media(min-width:760px){.welcome-copy .party-illustration{width:min(100%,350px);margin:-18px 0 -32px}.welcome-promises{margin-top:18px}.terminal-page{align-content:center}.terminal-page>.brand{position:absolute;top:25px}}
 
+/* Entrée : une lecture plus directe entre le message de jeu et la création de grille. */
+@media(min-width:760px){.welcome-copy{align-self:center;max-width:540px}.welcome-copy>p:not(.eyebrow){max-width:500px;margin-bottom:14px}.welcome-copy .party-illustration{width:min(100%,285px);margin:-8px 0 -20px}.join-card{width:min(100%,440px);justify-self:end;padding:26px}.join-card label{margin:13px 0}.join-card input{min-height:48px}.join-card .button{min-height:52px}}
+
 /* En-tête : lettrage lisible et demi-anneaux ancrés dans le bord supérieur. */
 .brand b,.brand--compact b{letter-spacing:.025em}.app-header{height:58px;padding:7px 12px}.app-header .brand,.admin-shell>header .brand{width:auto}.app-header .brand--compact .brand__logo,.admin-shell>header .brand--compact .brand__logo{position:absolute;left:12px;width:52px;height:30px}.app-header .brand>span:last-child,.admin-shell>header .brand>span:last-child{position:absolute;left:50%;align-items:center;transform:translateX(-50%);white-space:nowrap}.app-header .brand--compact b,.admin-shell>header .brand--compact b{font-size:1.4rem;letter-spacing:.16em;line-height:.82;text-shadow:none}.app-header .brand--compact small,.admin-shell>header .brand--compact small{font-size:.54rem;letter-spacing:.2em;margin-top:5px}.app-header .live-state{margin-left:auto}.admin-shell>header{height:58px;padding-block:7px}
 
